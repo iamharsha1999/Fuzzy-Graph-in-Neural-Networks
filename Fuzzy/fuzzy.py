@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from Activation import *
 
 class support:
 
@@ -36,7 +37,7 @@ class Model:
             print("Please check whether you have CUDA supported device")
 
 
-    def __init__(self, accelaration = "gpu"):
+    def __init__(self, input_shape, accelaration = "gpu",):
 
         self.accelaration = accelaration
 
@@ -47,25 +48,32 @@ class Model:
         if self.accelaration  == "gpu":
             Model.check_cuda(self)
 
-        self.layers = torch.empty(2, device = self.device)
-        self.no_of_layers = 2
-        self.weights = torch.empty(2, device = self.device)
+        self.layers = []
+        self.no_of_layers = 0
+        self.weights = []
 
-
-
+        ## Input Shape
+        self.input_shape = input_shape
         ## Garbage Variables
         self.prev_layer_shape = 0
 
 
-    def add_layer(self, no_of_neurons, activation):
+    def add_layer(self, no_of_neurons):
 
         ## Create the current layer
-        layer = torch.empty(no_of_neurons)
+        layer = torch.empty(no_of_neurons, device = self.device)
 
+        if self.no_of_layers == 0:
+            self.prev_layer_shape = self.input_shape
 
         ## Initialize weights between the current layer and previous layer
-        weights = torch.empty(no_of_neurons, self.prev_layer_shape)
+        weights = torch.rand(no_of_neurons, self.prev_layer_shape, device = self.device)
 
         ## Add the layer to the model architecture
         self.no_of_layers +=1
-        self.layers = torch.empty(no_of_layers)
+        self.layers.append(layer)
+
+        ## Add the intiated weights to weights list
+        self.weights.append(weights)
+
+    def train_model():
