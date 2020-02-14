@@ -4,7 +4,7 @@ import numpy as np
 class Activations:
 
 """
-    Activation Functions used in the module are defined here.
+    Regular activation functions used in the module are defined here.
     The activation functions used are:
         * Sigmoid
         * Relu
@@ -48,35 +48,78 @@ class Activations:
             * Product T Norm
             * Minimum T Norm
             * Luckasiewickz T Norm
-            * Drastic Product T Norm
     """
 
-    @staticmethod
+
     # Minimum T Norm
-    def t_norm_min(weight_matrix, input_matrix, present_layer):
-        for i in weight_matrix
-            present_layer[i] = np.fmin(i,input_matrix)
+    @staticmethod
+    def t_norm_min(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+        if mode = "b":
+            z = []
+            for i in weight_matrix:
+                z.append(np.fmin(i,input_matrix))
+            return z
+        elif mode = "v":
+            return np.fmin(z)
 
     # Product T Norm
     @staticmethod
-    def prod_t_norm(weight_matrix, input_matrix, present_layer):
-        present_layer = torch.mm(weight_matrix, input_matrix)
+    def prod_t_norm(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+        if mode = "b":
+            z = torch.mm(weight_matrix, input_matrix)
+            return z
+        elif mode = "v":
+            return np.prod(z)
 
     # Luckasiewickz T Norm
     @staticmethod
-    def luka_t_norm(weight_matrix, input_matrix):
-        np.fmax()
+    def luka_t_norm(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+        if mode = "b":
+            z = []
+            for i in weight_matrix:
+                z.append(np.fmax(i + input_matrix - 1,0))
+            return z
+        elif mode = "v":
+            z = np.fmax(np.sum(z)-1, 0)
+            return z
 
-    # Drastic Product T Norm
-    def dras_t_norm(weight_matrix, input_matrix):
 
+    ## Functions for T Co Norm or S Norm
+    """
+        Available T Co Norm or S Norm Activations
+            * Probablistic Sum S Norm
+            * Luckasiewickz S Norm
+            * Maximum S Norm
+    """
 
+    # Maximum  S Norm
+    def s_norm_max(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+        if mode = "b":
+            z = []
+            for i in weight_matrix:
+                z.append(np.fmax(i, input_matrix))
+        elif mode = "v":
+            return np.fmax(z)
 
+    # Probablistic Sum S Norm
+    def prob_s_norm(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+        if mode = "b":
+            z = []
+            for i in weight_matrix:
+                z.append((i + input_matrix) - i*weight_matrix)
+            return z
+        elif mode == "v":
+            return (np.sum(z) - np.prod(z))
 
-
-
-
-    ## Function for T Norm
+    # Luckasiewickz S Norm
+    def luka_s_norm(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+        if mode == "b":
+            z = []
+            for i in weight_matrix:
+                z.append(np.fmin(i + input_matrix,1))
+        elif mode == "v":
+            z = np.fmin(np.sum(z), 1)
+            return z
 
 class support:
 
@@ -92,8 +135,6 @@ class support:
         x = (x-mini)/(maxi-mini)
 
         return x
-
-
 
 class Model:
 
@@ -137,7 +178,7 @@ class Model:
         self.prev_layer_shape = 0
 
 
-    def add_layer(self, no_of_neurons, activation):
+    def add_layer(self, no_of_neurons, layer_activation, t_norm = "min", s_norm = "max"):
         """
         no_of_neurons ==> Represent the Number of Neurons in that particular layer
         activation ==> Represent the activation to be used for that particular layer
@@ -160,13 +201,28 @@ class Model:
         self.weights.append(weights)
 
         ## Add the activation to the layer
-        self.activations.append(activation)
+        dict = {'act':layer_activation, 't_norm':t_norm, 's_norm':s_norm}
+        self.activations.append(dict)
 
 
-    def compute_neuron(self):
-        for i in range(1,len(self.layers)):
-            self.layers[i] = torch.mm(self.weights[i],self.layers[i-1])
-            print(self.layers[i].size())
+    def compute_layer(self, weight_matrix, input_matrix, present_layer, layer_number):
+
+        if self.activations['act'] = 'AND':
+            """
+                AND Neuron ==> T(S(x,y))
+            """
+            if self.activations[layer_number]['s_norm'] == "max":
+                z = s_norm_max(weight_matrix, input_matrix)
+            elif self.activations[layer_number]['s_norm'] == "luka":
+                z = luka_s_norm(weight_matrix, input_matrix)
+            elif self.activations[layer_number]['s_norm'] == "prob":
+                z = prob_s_norm(weight_matrix, input_matrix)
+
+            if self.activations[layer_number]['t_norm'] ==
+
+
+
+
 
     def train_model(self):
         Model.compute_neuron(self)
