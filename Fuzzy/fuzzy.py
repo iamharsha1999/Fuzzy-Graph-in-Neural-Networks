@@ -223,13 +223,13 @@ class Model:
         activation ==> Represent the activation to be used for that particular layer
         """
         ## Create the current layer
-        layer = torch.empty(no_of_neurons, 1,device = self.device)
+        layer = torch.empty(no_of_neurons, 1,device = self.device, requires_grad = True)
 
         if self.no_of_layers == 0:
             self.prev_layer_shape = self.input_shape
 
         ## Initialize weights between the current layer and previous layer
-        weights = torch.rand(no_of_neurons, self.prev_layer_shape, device = self.device)
+        weights = torch.rand(no_of_neurons, self.prev_layer_shape, device = self.device, requires_grad = True)
 
         ## Add the layer to the model architecture
         self.no_of_layers +=1
