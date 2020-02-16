@@ -53,34 +53,54 @@ class Activations:
 
     # Minimum T Norm
     @staticmethod
-    def t_norm_min(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+    def t_norm_min(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            z = []
+            a = []
             for i in weight_matrix:
-                z.append(min(i,input_matrix))
-            return z
+                k = torch.min(i,input_matrix.squeeze(1))
+                k = k.view(1,-1)
+                a.append(k)
+            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
+            torch.cat(a, out = b)
+            return b
         elif mode == "v":
-            return min(z)
+
+            z = torch.min(z, axis =1).values
+            z = z.view(-1,1)
+            return z
 
     # Product T Norm
     @staticmethod
-    def prod_t_norm(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+    def prod_t_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            z = torch.mm(weight_matrix, input_matrix)
-            return z
+            a = []
+            for i in weight_matrix:
+                k = torch.mul(i, input_matrix.squeeze(1))
+                k = k.view(1,-1)
+                a.append(k)
+            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
+            torch.cat(a, out = b)
+            return b
         elif mode == "v":
-            return torch.prod(z)
+            z = torch.prod(z, axis = 1)
+            z = z.view(-1,1)
+            return z
 
     # Luckasiewickz T Norm
     @staticmethod
-    def luka_t_norm(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+    def luka_t_norm(mode, device, weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            z = []
+            a = []
             for i in weight_matrix:
-                z.append(torch.max(i + input_matrix - 1,0))
-            return z
+                k = torch.max(i + input_matrix.squeeze(1) - torch.ones(weight_matrix.size()[1], device = device),torch.zeros(weight_matrix.size()[1], device = device))
+                k = k.view(1,-1)
+                a.append(k)
+            b =  torch.empty(len(a), weight_matrix.size()[1], device = device)
+            torch.cat(a,out =b)
+            return b
         elif mode == "v":
-            z = torch.max(torch.sum(z)-1,0)
+            z = torch.max(torch.sum(z, axis =1)-torch.ones(z.size()[0], device = device),torch.zeros(z.size()[0], device = device))
+            z = z.view(-1,1)
             return z
 
 
@@ -93,37 +113,51 @@ class Activations:
     """
 
     # Maximum  S Norm
-    def s_norm_max(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+    def s_norm_max(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            z = []
+            a = []
             for i in weight_matrix:
-                z.append(torch.max(i, input_matrix))
-        elif mode == "v":
-            return torch.max(z)
+                k = torch.max(i, input_matrix.squeeze(1))
+                k = k.view(1,-1)
+                a.append(k)
+            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
+            torch.cat(a, dim = 0, out=b)
 
-    # Probablistic Sum S Norm
-    def prob_s_norm(mode,weight_matrix = 0, input_matrix = 0, z = 0):
-        if mode == "b":
-            z = []
-            for i in weight_matrix:
-                z.append((i + input_matrix) - i*weight_matrix)
-            return z
+            return b
         elif mode == "v":
-            return (torch.sum(z, axis = 1) - torch.prod(z))
+            z = torch.max(z, axis = 1).values
+            z = z.view(-1,1)
+            return z
+    # Probablistic Sum S Norm
+    def prob_s_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
+        if mode == "b":
+            a = []
+            for i in weight_matrix:
+                k = (i + input_matrix.squeeze(1)) - (i*input_matrix.squeeze(1))
+                k = k.view(1,-1)
+                a.append(k)
+            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
+            torch.cat(a, out = b)
+            return b
+        elif mode == "v":
+            z = torch.sum(z, axis = 1) - torch.prod(z, axis = 1)
+            z = z.view(-1,1)
+            return z
 
     # Luckasiewickz S Norm
-    def luka_s_norm(mode,weight_matrix = 0, input_matrix = 0, z = 0):
+    def luka_s_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            z = torch.empty(1,weight_matrix.size()[1])
-            p = torch.empty(weight_matrix.size()[1])
+            a = []
             for i in weight_matrix:
-                p = (torch.min(i + input_matrix.squeeze(1),torch.ones(i.size()[0])))
-                """
-                    Incomplete
-                """
+                k = torch.min(i + input_matrix.squeeze(1),torch.ones(i.size()[0], device = device))
+                k = k.view(1,-1)
+                a.append(k)
+            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
+            torch.cat(a, out = b)
+            return b
         elif mode == "v":
             z = torch.min(torch.sum(z, axis = 1), torch.ones(z.size()[0]))
-            z = torch.view(z.size()[0],1)
+            z = z.view(-1,1)
             return z
 
 class support:
@@ -209,7 +243,7 @@ class Model:
         dict = {'act':layer_activation, 't_norm':t_norm, 's_norm':s_norm}
         self.activations.append(dict)
 
-
+    @staticmethod
     def compute_layer(self, weight_matrix, input_matrix, layer_number):
         ## Device is GPU
         device = self.device
@@ -219,41 +253,42 @@ class Model:
                 AND Neuron ==> T(S(x,y))
             """
             if self.activations[layer_number]['s_norm'] == "max":
-                z = Activations.s_norm_max("b",weight_matrix, input_matrix)
+                z = Activations.s_norm_max("b",device, weight_matrix, input_matrix)
             elif self.activations[layer_number]['s_norm'] == "luka":
-                z = Activations.luka_s_norm("b",weight_matrix, input_matrix)
+                z = Activations.luka_s_norm("b",device, weight_matrix, input_matrix)
             elif self.activations[layer_number]['s_norm'] == "prob":
-                z = Activations.prob_s_norm("b",weight_matrix, input_matrix)
+                z = Activations.prob_s_norm("b",device, weight_matrix, input_matrix)
 
             if self.activations[layer_number]['t_norm'] == "min":
-                z = Activations.t_norm_min("v",z)
+                z = Activations.t_norm_min("v",device, z = z)
             elif self.activations[layer_number]['t_norm'] == "luka":
-                z = Activations.luka_t_norm("v",z)
+                z = Activations.luka_t_norm("v",device, z = z)
             elif self.activations[layer_number]['t_norm'] == "prod":
-                z = Activations.prod_t_norm("v",z)
+                z = Activations.prod_t_norm("v",device, z = z)
 
         elif self.activations[layer_number]['act'] == 'OR':
+            print(self.activations[layer_number])
             """
                 OR Neuron ==> S(T(x,y))
             """
             if self.activations[layer_number]['t_norm'] == "min":
-                z = Activations.t_norm_min("b",weight_matrix, input_matrix)
+                z = Activations.t_norm_min("b",device, weight_matrix, input_matrix)
             elif self.activations[layer_number]['t_norm'] == "luka":
-                z = Activations.luka_t_norm("b",weight_matrix, input_matrix)
+                z = Activations.luka_t_norm("b",device, weight_matrix, input_matrix)
             elif self.activations[layer_number]['t_norm'] == "prod":
-                z = Activations.prod_t_norm("b",weight_matrix, input_matrix)
+                z = Activations.prod_t_norm("b",device, weight_matrix, input_matrix)
 
             if self.activations[layer_number]['s_norm'] == "max":
-                z = Activations.s_norm_max("v",z)
+                z = Activations.s_norm_max("v",device, z = z)
             elif self.activations[layer_number]['s_norm'] == "luka":
-                z = Activations.luka_s_norm("v",z)
+                z = Activations.luka_s_norm("v",device, z = z)
             elif self.activations[layer_number]['s_norm'] == "prob":
-                z = Activations.prob_s_norm("v",z)
+                z = Activations.prob_s_norm("v",device, z = z)
 
-        self.layers[layer_number] == z
-        print(self.layers[layer_number].size())
+        self.layers[layer_number] = z
+
 
     def train_model(self):
-        for i in range(1, self.no_of_layers-1):
+        for i in range(1, self.no_of_layers):
             Model.compute_layer(self,self.weights[i],self.layers[i-1],i)
         # print(self.layers[1].size())
