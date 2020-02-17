@@ -55,7 +55,7 @@ class Activations:
     @staticmethod
     def t_norm_min(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device)
+            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device, requires_grad = True)
             j = 0
             for i in weight_matrix:
                 a[j] = torch.min(i,input_matrix.squeeze(1))
@@ -71,7 +71,7 @@ class Activations:
     @staticmethod
     def prod_t_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device)
+            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device, requires_grad = True)
             j = 0
             for i in weight_matrix:
                 a[j] = torch.mul(i, input_matrix.squeeze(1))
@@ -86,7 +86,7 @@ class Activations:
     @staticmethod
     def luka_t_norm(mode, device, weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device)
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device, requires_grad = True)
             j=0
             for i in weight_matrix:
                 a[j] = torch.max(i + input_matrix.squeeze(1) - torch.ones(weight_matrix.size()[1], device = device),torch.zeros(weight_matrix.size()[1], device = device))
@@ -111,7 +111,7 @@ class Activations:
     # Maximum  S Norm
     def s_norm_max(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device ='cuda:0')
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device = device, requires_grad = True)
             j=0
             for i in weight_matrix:
                 a[j] = torch.max(i, input_matrix.squeeze(1))
@@ -124,7 +124,7 @@ class Activations:
     # Probablistic Sum S Norm
     def prob_s_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device ='cuda:0')
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device, requires_grad = True)
             j=0
             for i in weight_matrix:
                 a[j] = (i + input_matrix.squeeze(1)) - (i*input_matrix.squeeze(1))
@@ -138,7 +138,7 @@ class Activations:
     # Luckasiewickz S Norm
     def luka_s_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device ='cuda:0')
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device, requires_grad = True)
             j=0
             for i in weight_matrix:
                 a[j] = torch.min(i + input_matrix.squeeze(1),torch.ones(i.size()[0], device = device))
@@ -206,7 +206,7 @@ class Model:
         self.prev_layer_shape = 0
 
 
-    def add_layer(self, no_of_neurons, layer_activation, t_norm = "min", s_norm = "max"):
+    def add_layer(self, no_of_neurons, layer_activation, t_norm = "luka", s_norm = "luka"):
         """
         no_of_neurons ==> Represent the Number of Neurons in that particular layer
         activation ==> Represent the activation to be used for that particular layer
@@ -277,12 +277,20 @@ class Model:
         self.layers[layer_number] = z
 
 
-    def train_model(self):
+    def train_model(self, inp, output):
+        ## Feed Forward
+
         for i in range(1,self.no_of_layers):
-        #     if i == 0:
-        #         inp = inp
-        #     else:
-        #         inp = self.layers[i-1]
+            if i == 0:
+                inp = inp
+            else:
+                inp = self.layers[i-1]
 
             Model.compute_layer(self,self.weights[i],self.layers[i-1],i)
+        pred = self.layers[(self.no_of_layers - 1)]
+        loss = pred - output
+        loss.backward(torch.empty(loss.size(), device = 'cuda:0'))
+        for i in self.weights:
+            print(i.grad)
+
         ## Backpropagation
