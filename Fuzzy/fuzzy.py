@@ -55,14 +55,12 @@ class Activations:
     @staticmethod
     def t_norm_min(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = []
+            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device)
+            j = 0
             for i in weight_matrix:
-                k = torch.min(i,input_matrix.squeeze(1))
-                k = k.view(1,-1)
-                a.append(k)
-            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
-            torch.cat(a, out = b)
-            return b
+                a[j] = torch.min(i,input_matrix.squeeze(1))
+                j+=1
+            return a
         elif mode == "v":
 
             z = torch.min(z, axis =1).values
@@ -73,14 +71,12 @@ class Activations:
     @staticmethod
     def prod_t_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = []
+            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device)
+            j = 0
             for i in weight_matrix:
-                k = torch.mul(i, input_matrix.squeeze(1))
-                k = k.view(1,-1)
-                a.append(k)
-            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
-            torch.cat(a, out = b)
-            return b
+                a[j] = torch.mul(i, input_matrix.squeeze(1))
+                j+=1
+            return a
         elif mode == "v":
             z = torch.prod(z, axis = 1)
             z = z.view(-1,1)
@@ -90,14 +86,14 @@ class Activations:
     @staticmethod
     def luka_t_norm(mode, device, weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = []
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device)
+            j=0
             for i in weight_matrix:
-                k = torch.max(i + input_matrix.squeeze(1) - torch.ones(weight_matrix.size()[1], device = device),torch.zeros(weight_matrix.size()[1], device = device))
-                k = k.view(1,-1)
-                a.append(k)
+                a[j] = torch.max(i + input_matrix.squeeze(1) - torch.ones(weight_matrix.size()[1], device = device),torch.zeros(weight_matrix.size()[1], device = device))
+                j+=1
             b =  torch.empty(len(a), weight_matrix.size()[1], device = device)
             torch.cat(a,out =b)
-            return b
+            return a
         elif mode == "v":
             z = torch.max(torch.sum(z, axis =1)-torch.ones(z.size()[0], device = device),torch.zeros(z.size()[0], device = device))
             z = z.view(-1,1)
@@ -115,15 +111,12 @@ class Activations:
     # Maximum  S Norm
     def s_norm_max(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = []
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device ='cuda:0')
+            j=0
             for i in weight_matrix:
-                k = torch.max(i, input_matrix.squeeze(1))
-                k = k.view(1,-1)
-                a.append(k)
-            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
-            torch.cat(a, dim = 0, out=b)
-
-            return b
+                a[j] = torch.max(i, input_matrix.squeeze(1))
+                j+=1
+            return a
         elif mode == "v":
             z = torch.max(z, axis = 1).values
             z = z.view(-1,1)
@@ -131,14 +124,12 @@ class Activations:
     # Probablistic Sum S Norm
     def prob_s_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = []
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device ='cuda:0')
+            j=0
             for i in weight_matrix:
-                k = (i + input_matrix.squeeze(1)) - (i*input_matrix.squeeze(1))
-                k = k.view(1,-1)
-                a.append(k)
-            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
-            torch.cat(a, out = b)
-            return b
+                a[j] = (i + input_matrix.squeeze(1)) - (i*input_matrix.squeeze(1))
+                j+=1
+            return a
         elif mode == "v":
             z = torch.sum(z, axis = 1) - torch.prod(z, axis = 1)
             z = z.view(-1,1)
@@ -147,14 +138,12 @@ class Activations:
     # Luckasiewickz S Norm
     def luka_s_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = []
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device ='cuda:0')
+            j=0
             for i in weight_matrix:
-                k = torch.min(i + input_matrix.squeeze(1),torch.ones(i.size()[0], device = device))
-                k = k.view(1,-1)
-                a.append(k)
-            b = torch.empty(len(a), weight_matrix.size()[1], device = device)
-            torch.cat(a, out = b)
-            return b
+                a[j] = torch.min(i + input_matrix.squeeze(1),torch.ones(i.size()[0], device = device))
+                j+=1
+            return a
         elif mode == "v":
             z = torch.min(torch.sum(z, axis = 1), torch.ones(z.size()[0]))
             z = z.view(-1,1)
@@ -289,6 +278,11 @@ class Model:
 
 
     def train_model(self):
-        for i in range(1, self.no_of_layers):
+        for i in range(1,self.no_of_layers):
+        #     if i == 0:
+        #         inp = inp
+        #     else:
+        #         inp = self.layers[i-1]
+
             Model.compute_layer(self,self.weights[i],self.layers[i-1],i)
-        # print(self.layers[1].size())
+        ## Backpropagation

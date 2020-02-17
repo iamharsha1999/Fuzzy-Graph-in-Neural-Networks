@@ -1,4 +1,13 @@
 from Fuzzy import Model
+import torch
+from skfuzzy.membership import trimf
+
+
+# a = torch.randn(10)
+# print(a)
+# a = torch.from_numpy(trimf(a,[0,1,5]))
+# a = a.to(device = torch.device('cuda')).float()
+# a = a.view(-1,1)
 
 
 model = Model(10)
