@@ -55,7 +55,7 @@ class Activations:
     @staticmethod
     def t_norm_min(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device, requires_grad = True)
+            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device)
             j = 0
             for i in weight_matrix:
                 a[j] = torch.min(i,input_matrix.squeeze(1))
@@ -71,7 +71,7 @@ class Activations:
     @staticmethod
     def prod_t_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device, requires_grad = True)
+            a = torch.randn(weight_matrix.size()[0], weight_matrix.size()[1], device = device)
             j = 0
             for i in weight_matrix:
                 a[j] = torch.mul(i, input_matrix.squeeze(1))
@@ -86,13 +86,11 @@ class Activations:
     @staticmethod
     def luka_t_norm(mode, device, weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device, requires_grad = True)
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device)
             j=0
             for i in weight_matrix:
                 a[j] = torch.max(i + input_matrix.squeeze(1) - torch.ones(weight_matrix.size()[1], device = device),torch.zeros(weight_matrix.size()[1], device = device))
                 j+=1
-            b =  torch.empty(len(a), weight_matrix.size()[1], device = device)
-            torch.cat(a,out =b)
             return a
         elif mode == "v":
             z = torch.max(torch.sum(z, axis =1)-torch.ones(z.size()[0], device = device),torch.zeros(z.size()[0], device = device))
@@ -111,7 +109,7 @@ class Activations:
     # Maximum  S Norm
     def s_norm_max(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device = device, requires_grad = True)
+            a = torch.randn(weight_matrix.size()[0],weight_matrix.size()[1],device = device)
             j=0
             for i in weight_matrix:
                 a[j] = torch.max(i, input_matrix.squeeze(1))
@@ -124,7 +122,7 @@ class Activations:
     # Probablistic Sum S Norm
     def prob_s_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device, requires_grad = True)
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device)
             j=0
             for i in weight_matrix:
                 a[j] = (i + input_matrix.squeeze(1)) - (i*input_matrix.squeeze(1))
@@ -138,7 +136,7 @@ class Activations:
     # Luckasiewickz S Norm
     def luka_s_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
         if mode == "b":
-            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device, requires_grad = True)
+            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device)
             j=0
             for i in weight_matrix:
                 a[j] = torch.min(i + input_matrix.squeeze(1),torch.ones(i.size()[0], device = device))
@@ -202,11 +200,15 @@ class Model:
 
         ## Input Shape
         self.input_shape = input_shape
+
         ## Garbage Variables
         self.prev_layer_shape = 0
 
 
-    def add_layer(self, no_of_neurons, layer_activation, t_norm = "luka", s_norm = "luka"):
+
+
+
+    def add_layer(self, no_of_neurons, layer_activation, t_norm = "prod", s_norm = "prob"):
         """
         no_of_neurons ==> Represent the Number of Neurons in that particular layer
         activation ==> Represent the activation to be used for that particular layer
@@ -234,8 +236,10 @@ class Model:
 
     @staticmethod
     def compute_layer(self, weight_matrix, input_matrix, layer_number):
+
         ## Device is GPU
         device = self.device
+
 
         if self.activations[layer_number]['act'] == 'AND':
             """
@@ -248,6 +252,8 @@ class Model:
             elif self.activations[layer_number]['s_norm'] == "prob":
                 z = Activations.prob_s_norm("b",device, weight_matrix, input_matrix)
 
+            self.intermediate.append(z)
+
             if self.activations[layer_number]['t_norm'] == "min":
                 z = Activations.t_norm_min("v",device, z = z)
             elif self.activations[layer_number]['t_norm'] == "luka":
@@ -256,7 +262,6 @@ class Model:
                 z = Activations.prod_t_norm("v",device, z = z)
 
         elif self.activations[layer_number]['act'] == 'OR':
-            print(self.activations[layer_number])
             """
                 OR Neuron ==> S(T(x,y))
             """
@@ -266,6 +271,8 @@ class Model:
                 z = Activations.luka_t_norm("b",device, weight_matrix, input_matrix)
             elif self.activations[layer_number]['t_norm'] == "prod":
                 z = Activations.prod_t_norm("b",device, weight_matrix, input_matrix)
+
+            self.intermediate.append(z)
 
             if self.activations[layer_number]['s_norm'] == "max":
                 z = Activations.s_norm_max("v",device, z = z)
@@ -277,20 +284,27 @@ class Model:
         self.layers[layer_number] = z
 
 
-    def train_model(self, inp, output):
-        ## Feed Forward
+    def train_model(self, inp, output, lr = 0.01):
 
-        for i in range(1,self.no_of_layers):
+        self.intermediate = []
+
+        ## Feed Forward
+        for i in range(self.no_of_layers):
             if i == 0:
                 inp = inp
             else:
                 inp = self.layers[i-1]
 
-            Model.compute_layer(self,self.weights[i],self.layers[i-1],i)
-        pred = self.layers[(self.no_of_layers - 1)]
-        loss = pred - output
-        loss.backward(torch.empty(loss.size(), device = 'cuda:0'))
-        for i in self.weights:
-            print(i.grad)
+            Model.compute_layer(self,self.weights[i],inp,i)
 
-        ## Backpropagation
+        pred = self.layers[(self.no_of_layers - 1)]
+
+        ## Loss Function
+        loss = (pred - output)**2
+
+        ## Back Propgation
+        loss.backward(torch.empty(loss.size(), device = self.device, dtype = torch.float))
+        for i in self.weights:
+            print("Weight:",i)
+            print("Grad:",i.grad)
+            print("Updated Weight:",torch.sub(i,(lr * i.grad)))
