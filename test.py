@@ -1,19 +1,31 @@
 from Fuzzy import Model
 import torch
-from skfuzzy.membership import trimf
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+
+csv_path = '/home/harsha/Downloads/hotel_bookings.csv'
+df = pd.read_csv(csv_path, delimiter=',')
+df.drop(['lead_time','agent','company','adr','reservation_status_date'], axis = 1, inplace = True)
+df.dropna(inplace=True)
+
+le = LabelEncoder()
+df = df.apply(le.fit_transform)
+
+print("DataSet")
+print(df.head())
+x = df.iloc[:,:-1]
+y = df.iloc[:,-1]
+
+x_train, x_val, y_train, y_val = train_test_split(x,y, test_size = 0.3)
+
+print(x_train.iloc[0,:])
+print(y_train.iloc[0])
 
 
-a = torch.tensor([1,2,3,4,5,6,7,8,9,10])
-print(a)
-a = torch.from_numpy(trimf(a,[0,7,10]))
-a = a.to(device = torch.device('cuda')).float()
-a = a.view(-1,1)
-o = torch.randn(5,1, device = 'cuda:0')
-
-model = Model(10)
+model = Model(26)
 model.add_layer(5, "AND")
 model.add_layer(10, "AND")
 model.add_layer(15, "AND")
-model.add_layer(5, "AND")
-
-model.train_model(a,o)
+model.add_layer(1, "AND")
+model.train_model(x_train.iloc[0,:],y_train.iloc[0])
