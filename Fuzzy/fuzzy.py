@@ -269,19 +269,13 @@ class Model:
             elif self.activations[layer_number]['s_norm'] == "prob":
                 z = Activations.prob_s_norm("b",device, weight_matrix, input_matrix)
 
-            if self.iterationt == 0:
-                self.intermediate.append(z)
-            else:
-                self.intermediate[layer_number] = z
-
-
             if self.activations[layer_number]['t_norm'] == "min":
                 z = Activations.t_norm_min("v",device, z = z)
             elif self.activations[layer_number]['t_norm'] == "luka":
                 z = Activations.luka_t_norm("v",device, z = z)
             elif self.activations[layer_number]['t_norm'] == "prod":
                 z = Activations.prod_t_norm("v",device, z = z)
-            # print("Layer" + str(layer_number),z)
+
 
         elif self.activations[layer_number]['act'] == 'OR':
             """
@@ -294,12 +288,6 @@ class Model:
             elif self.activations[layer_number]['t_norm'] == "prod":
                 z = Activations.prod_t_norm("b",device, weight_matrix, input_matrix)
 
-            if self.iterationt == 0:
-                self.intermediate.append(z)
-            else:
-                self.intermediate[layer_number] = z
-
-
             if self.activations[layer_number]['s_norm'] == "max":
                 z = Activations.s_norm_max("v",device, z = z)
             elif self.activations[layer_number]['s_norm'] == "luka":
@@ -307,38 +295,25 @@ class Model:
             elif self.activations[layer_number]['s_norm'] == "prob":
                 z = Activations.prob_s_norm("v",device, z = z)
 
-
-        if self.iteration == 0:
-            self.layers.append(torch.relu(z))
-        else:
-            # print("Second Iteration")
-            self.layers[layer_number] = torch.relu(z)
-
-
-        # if layer_number == 2:
-            # print("Z:",z)
-            # print("Layer",self.layers[2].data)
-            # print("Leaf",self.layers[2].grad_fn)
-            # print("LeafI",self.intermediate[2].grad_fn)
-            # print("LeafW",self.weights[2].grad_fn)
+        self.layers.append(z)
 
 
 
-    def train_model(self, X, Y, lr = 0.001):
+    def train_model(self, X, Y, lr = 0.00001):
         print("No of Layers: ", self.no_of_layers)
         self.intermediate = []
 
-        for epoch in range(5):
+        for epoch in range(100):
             overall_loss = 0
             print("Epoch:",epoch+1)
             for i in range(len(X)):
                 self.layers = []
-                inp = X[i]
-                output = Y[i]
+                inp = X.iloc[i,:]
+                output = Y.iloc[i]
                 ## PreProcessing for one input
                 a = torch.tensor(inp)
                 # a = torch.from_numpy(trimf(a,[0,3,10]))
-                a = a.to(device = torch.device('cuda')).float()
+                a = a.to(device = torch.device('cuda'))
                 a = a.view(-1,1)
                 output = torch.tensor(output, device = self.device)
                 # print("Input Number:",i)
@@ -348,26 +323,25 @@ class Model:
                         inpt = a
                     else:
                         inpt = self.layers[layer-1]
-                    ## Problem is with this inp. Layer 0 tensor of 1st exaple is passed as input to all the other examples for succesive layers.
-                    # print("CL:", inpt)
+
                     Model.compute_layer(self,self.weights[layer],inpt,layer)
-                # print("Overall Layers",self.layers)
 
 
                 pred = self.layers[-1]
-                # print(self.layers[-1])
-                pred = torch.sigmoid(pred)
 
                 ## Loss Function
                 loss = (pred - output)**2
-                overall_loss +=torch.sum(loss)
+                overall_loss +=torch.sum(loss) ## Incase if the output is multidimensional vector
+                overall_loss = overall_loss/len(X)
 
-                ## Back Propgation
-                loss.backward(torch.empty(loss.size(), device = self.device), retain_graph = True)
-                j = 0
-                for w in self.weights:
-                        # print("BU", w.data)
-                        w.data -= (lr*((w.grad-torch.min(w.grad))/(torch.max(w.grad)-torch.min(w.grad))))
-                        # print("AU",w.data)
-            overall_loss = overall_loss/len(X)
-            print("MSE: ", overall_loss)
+            ## Back Propgation
+            overall_loss.backward(retain_graph = True)
+            j = 0
+
+            for w in self.weights:
+                    w.data -= (lr*((w.grad-torch.min(w.grad))/(torch.max(w.grad)-torch.min(w.grad))))
+                    w.grad.zero_()
+                    w.data = (w.data - torch.min(w.data))/(torch.max(w.data) - torch.min(w.data))
+
+
+            print("MSE: ", overall_loss.item())

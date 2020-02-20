@@ -19,16 +19,14 @@ x = df.iloc[0:10,:-1]
 y = df.iloc[0:10,-1]
 
 x_train, x_val, y_train, y_val = train_test_split(x,y, test_size = 0.3)
-x_train = np.random.randn(2,3)
-y_train = np.random.randn(2,1)
+# x_train = np.random.randn(2,3)
+# y_train = np.random.randn(2,1)
 # print(x_train.iloc[0,:])
 # print(y_train.iloc[0])
 
 
-model = Model(3)
-model.add_layer(3, "AND")
-model.add_layer(3, "AND")
-# model.add_layer(10, "AND")
-# model.add_layer(15, "AND")
-# model.add_layer(1, "AND")
+model = Model(26)
+model.add_layer(10, "AND")
+model.add_layer(5, "AND")
+model.add_layer(1, "AND")
 model.train_model(x_train,y_train)
