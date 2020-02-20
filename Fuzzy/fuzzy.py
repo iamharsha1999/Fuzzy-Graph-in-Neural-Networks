@@ -82,6 +82,7 @@ class Activations:
                 j+=1
             return a
         elif mode == "v":
+            # print("Input for Z",z)
             z = torch.prod(z, axis = 1)
             z = z.view(-1,1)
             return z
@@ -126,12 +127,16 @@ class Activations:
 
     # Probablistic Sum S Norm
     def prob_s_norm(mode,device,weight_matrix = 0, input_matrix = 0, z = 0):
+        # print("Weights", weight_matrix)
+        # print("Input Mattrix", input_matrix)
         if mode == "b":
-            a = torch.rand(weight_matrix.size()[0], weight_matrix.size()[1], device =device)
+            a = torch.zeros(weight_matrix.size()[0], weight_matrix.size()[1], device = device)
             j=0
             for i in weight_matrix:
                 a[j] = torch.sub((i + input_matrix.squeeze(1)),(i*input_matrix.squeeze(1)))
+                # print(a[j])
                 j+=1
+            # print(a)
             return a
         elif mode == "v":
             z = torch.sum(z, axis = 1) - torch.prod(z, axis = 1)
@@ -218,7 +223,7 @@ class Model:
 
 
 
-    def add_layer(self, no_of_neurons, layer_activation, t_norm = "luka", s_norm = "luka"):
+    def add_layer(self, no_of_neurons, layer_activation, t_norm = "prod", s_norm = "prob"):
         """
         no_of_neurons ==> Represent the Number of Neurons in that particular layer
         activation ==> Represent the activation to be used for that particular layer
@@ -231,6 +236,7 @@ class Model:
 
         ## Initialize weights between the current layer and previous layer
         weights = (torch.rand(no_of_neurons, self.prev_layer_shape, device = self.device, requires_grad = True))
+
 
         ## Add the layer to the model architecture
         self.no_of_layers +=1
@@ -262,21 +268,20 @@ class Model:
                 z = Activations.luka_s_norm("b",device, weight_matrix, input_matrix)
             elif self.activations[layer_number]['s_norm'] == "prob":
                 z = Activations.prob_s_norm("b",device, weight_matrix, input_matrix)
-                # if layer_number == 2:
-                #     print("Z",z)
+
             if self.iterationt == 0:
                 self.intermediate.append(z)
             else:
                 self.intermediate[layer_number] = z
-                self.iteration = 1
+
 
             if self.activations[layer_number]['t_norm'] == "min":
-                z = Activations.t_norm_min("v",device, z = self.intermediate[layer_number])
+                z = Activations.t_norm_min("v",device, z = z)
             elif self.activations[layer_number]['t_norm'] == "luka":
-                z = Activations.luka_t_norm("v",device, z = self.intermediate[layer_number])
+                z = Activations.luka_t_norm("v",device, z = z)
             elif self.activations[layer_number]['t_norm'] == "prod":
-                z = Activations.prod_t_norm("v",device, z = self.intermediate[layer_number])
-
+                z = Activations.prod_t_norm("v",device, z = z)
+            # print("Layer" + str(layer_number),z)
 
         elif self.activations[layer_number]['act'] == 'OR':
             """
@@ -289,21 +294,26 @@ class Model:
             elif self.activations[layer_number]['t_norm'] == "prod":
                 z = Activations.prod_t_norm("b",device, weight_matrix, input_matrix)
 
-            self.intermediate.append(z)
+            if self.iterationt == 0:
+                self.intermediate.append(z)
+            else:
+                self.intermediate[layer_number] = z
+
 
             if self.activations[layer_number]['s_norm'] == "max":
-                z = Activations.s_norm_max("v",device, z = self.intermediate[layer_number])
+                z = Activations.s_norm_max("v",device, z = z)
             elif self.activations[layer_number]['s_norm'] == "luka":
-                z = Activations.luka_s_norm("v",device, z = self.intermediate[layer_number])
+                z = Activations.luka_s_norm("v",device, z = z)
             elif self.activations[layer_number]['s_norm'] == "prob":
-                z = Activations.prob_s_norm("v",device, z = self.intermediate[layer_number])
+                z = Activations.prob_s_norm("v",device, z = z)
 
 
         if self.iteration == 0:
             self.layers.append(torch.relu(z))
         else:
+            # print("Second Iteration")
             self.layers[layer_number] = torch.relu(z)
-            self.iteration = 1
+
 
         # if layer_number == 2:
             # print("Z:",z)
@@ -315,49 +325,50 @@ class Model:
 
 
     def train_model(self, X, Y, lr = 0.001):
-
-
-
-
+        print("No of Layers: ", self.no_of_layers)
         self.intermediate = []
-        for epoch in range(5):
+
+        for epoch in range(2):
             overall_loss = 0
             print("Epoch:",epoch+1)
+            # print("Weights",self.weights[0])
             for i in range(len(X)):
-                inp = X.iloc[i,:]
-                output = Y.iloc[i]
+                self.layers = []
+                inp = X[i]
+                output = Y[i]
                 ## PreProcessing for one input
                 a = torch.tensor(inp)
                 # a = torch.from_numpy(trimf(a,[0,3,10]))
-                a = a.to(device = torch.device('cuda')).float()
+                a = a.to(device = torch.device('cuda')).half()
                 a = a.view(-1,1)
                 output = torch.tensor(output, device = self.device)
-
+                # print("Input Number:",i)
                 ## Feed Forward
-                for i in range(self.no_of_layers):
-                    if i == 0:
-                        inp = a
+                for layer in range(self.no_of_layers):
+                    if layer == 0:
+                        inpt = a
                     else:
-                        inp = self.layers[-1]
-
-                    Model.compute_layer(self,self.weights[i],inp,i)
+                        inpt = self.layers[layer-1]
+                    ## Problem is with this inp. Layer 0 tensor of 1st exaple is passed as input to all the other examples for succesive layers.
+                    # print("CL:", inpt)
+                    Model.compute_layer(self,self.weights[layer],inpt,layer)
+                # print("Overall Layers",self.layers)
 
 
                 pred = self.layers[-1]
+                print(self.layers[-1])
                 pred = torch.sigmoid(pred)
-                # print("Pred", pred.data)
 
                 ## Loss Function
                 loss = (pred - output)**2
-                overall_loss +=loss
-
-                # print("Loss:",loss.data)
+                overall_loss +=torch.sum(loss)
 
                 ## Back Propgation
                 loss.backward(torch.empty(loss.size(), device = self.device), retain_graph = True)
                 j = 0
-                for i in self.weights:
-                        i.data -= (lr*(torch.div(i.grad - torch.min(i.grad),torch.max(i.grad) - torch.min(i.grad))))
-
+                for w in self.weights:
+                        # print("BU", w.data)
+                        w.data -= (lr*((w.grad-torch.min(w.grad))/(torch.max(w.grad)-torch.min(w.grad))))
+                        # print("AU",w.data)
             overall_loss = overall_loss/len(X)
             print("MSE: ", overall_loss)
