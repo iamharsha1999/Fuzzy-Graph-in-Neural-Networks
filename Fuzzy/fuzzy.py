@@ -328,10 +328,9 @@ class Model:
         print("No of Layers: ", self.no_of_layers)
         self.intermediate = []
 
-        for epoch in range(2):
+        for epoch in range(5):
             overall_loss = 0
             print("Epoch:",epoch+1)
-            # print("Weights",self.weights[0])
             for i in range(len(X)):
                 self.layers = []
                 inp = X[i]
@@ -339,7 +338,7 @@ class Model:
                 ## PreProcessing for one input
                 a = torch.tensor(inp)
                 # a = torch.from_numpy(trimf(a,[0,3,10]))
-                a = a.to(device = torch.device('cuda')).half()
+                a = a.to(device = torch.device('cuda')).float()
                 a = a.view(-1,1)
                 output = torch.tensor(output, device = self.device)
                 # print("Input Number:",i)
@@ -356,7 +355,7 @@ class Model:
 
 
                 pred = self.layers[-1]
-                print(self.layers[-1])
+                # print(self.layers[-1])
                 pred = torch.sigmoid(pred)
 
                 ## Loss Function
